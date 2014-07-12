@@ -11,10 +11,10 @@ from django.conf.urls import url, patterns
 
 import objectpack
 
-from wsfactory.urls import urlpatterns
-from wsfactory.views import track_config
-from wsfactory.ui.controller import controller
-from wsfactory.ui import actions
+from m3_wsfactory.urls import urlpatterns
+from m3_wsfactory.views import track_config
+from m3_wsfactory.ui.controller import controller
+from m3_wsfactory.ui import actions
 
 
 def register_actions():

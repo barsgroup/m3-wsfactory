@@ -7,17 +7,17 @@ def read_file(name):
         return fd.read()
 
 setup(
-    name='wsfactory',
+    name='m3_wsfactory',
     version='0.1.0',
-    packages=['wsfactory', 'wsfactory.smev', 'wsfactory.smev.smev256',
-              'wsfactory.management', 'wsfactory.management.commands',
-              'wsfactory.migrations'],
+    packages=['m3_wsfactory', 'm3_wsfactory.smev', 'm3_wsfactory.smev.smev256',
+              'm3_wsfactory.management', 'm3_wsfactory.management.commands',
+              'm3_wsfactory.migrations'],
     package_dir={'': 'src'},
     package_data={'': ['schema/*', 'templates/ui-js/*']},
-    url='http://bitbucket.org/timic/wsfactory',
+    url='http://bitbucket.org/timic/m3_wsfactory',
     license=read_file("LICENSE"),
     description=read_file("DESCRIPTION"),
     author='Timur Salyakhutdinov',
     author_email='t.salyakhutdinov@gmail.com',
-    requires=['lxml', 'spyne'],
+    requires=['lxml', 'spyne', 'django==1.4'],
 )

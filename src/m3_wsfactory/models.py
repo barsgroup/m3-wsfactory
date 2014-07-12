@@ -18,13 +18,13 @@ from django.core.files.base import ContentFile
 from django.db import models
 from django.utils.translation import ugettext as _
 
-from wsfactory.config import Settings
+from m3_wsfactory.config import Settings
 
 
 def upload_handler(instance, filename):
 
     return os.path.join(
-        settings.UPLOADS, "wsfactory",
+        settings.UPLOADS, "m3_wsfactory",
         datetime.datetime.now().strftime("%Y/%m/%d"),
         "%s.log" % uuid.uuid4().hex)
 

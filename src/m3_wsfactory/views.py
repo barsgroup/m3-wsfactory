@@ -35,7 +35,7 @@ def track_config(fn):
             logger.info(
                 "Not configured yet. Load configuration %s" % config_path)
             Settings.load(config_path)
-        cache = get_cache("wsfactory")
+        cache = get_cache("m3_wsfactory")
         if Settings.hash() != cache.get(Settings.CACHE_KEY):
             logger.info("Configuration file was changed. Reloading ...")
             Settings.reload()

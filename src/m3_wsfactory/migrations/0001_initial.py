@@ -20,7 +20,7 @@ class Migration(SchemaMigration):
             ('response_file', self.gf('django.db.models.fields.files.FileField')(max_length=100, null=True)),
             ('traceback_file', self.gf('django.db.models.fields.files.FileField')(max_length=100, null=True)),
         ))
-        db.send_create_signal('wsfactory', ['LogEntry'])
+        db.send_create_signal('m3_wsfactory', ['LogEntry'])
 
 
     def backwards(self, orm):
@@ -29,7 +29,7 @@ class Migration(SchemaMigration):
 
 
     models = {
-        'wsfactory.logentry': {
+        'm3_wsfactory.logentry': {
             'Meta': {'object_name': 'LogEntry', 'db_table': "'wsfactory_log'"},
             'api': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
             'application': ('django.db.models.fields.CharField', [], {'max_length': '50'}),
@@ -43,4 +43,4 @@ class Migration(SchemaMigration):
         }
     }
 
-    complete_apps = ['wsfactory']
+    complete_apps = ['m3_wsfactory']

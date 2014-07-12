@@ -15,12 +15,12 @@ from m3.actions import ControllerCache
 
 import objectpack
 
-from wsfactory.ui.controller import observer
-from wsfactory._helpers import get_cache
-from wsfactory.config import Settings
-from wsfactory.models import LogEntry
-from wsfactory.ui import models
-from wsfactory.ui import forms
+from m3_wsfactory.ui.controller import observer
+from m3_wsfactory._helpers import get_cache
+from m3_wsfactory.config import Settings
+from m3_wsfactory.models import LogEntry
+from m3_wsfactory.ui import models
+from m3_wsfactory.ui import forms
 
 
 class BaseWSPack(objectpack.ObjectPack):
@@ -260,7 +260,7 @@ class CheckCache(object):
     ]
 
     def before(self, request, context):
-        cache = get_cache("wsfactory")
+        cache = get_cache("m3_wsfactory")
         if isinstance(cache, LocMemCache):
             raise ApplicationLogicException(
                 _(u"Данная операция не поддерживается!"))
