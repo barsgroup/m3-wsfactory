@@ -22,8 +22,11 @@ def register_actions():
     controller.packs.extend((
         actions.ServicePack(),
         actions.SecurityPack(),
+        actions.SecurityParamsGridPack(),
         actions.ApiPack(),
         actions.ApplicationPack(),
+        actions.InProtocolParamsGridPack(),
+        actions.OutProtocolParamsGridPack(),
         actions.LogPack(),
     ))
 

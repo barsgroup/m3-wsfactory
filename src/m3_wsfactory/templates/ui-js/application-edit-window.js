@@ -1,37 +1,11 @@
-/**
- * Created by timic on 5/15/14.
- */
+// основной блок для потомков
+var win = Ext.getCmp('{{ component.client_id }}');
 
-function addProtocolParamItem(clientId){
-    var grid = Ext.getCmp(clientId),
-        store = grid.getStore();
-    store.add([
-        new store.recordType({
-            key: "sampleParam", "value": "sampleValue", value_type: "unicode"
-        })
-    ]);
-}
+{% block content %}{% endblock %}
 
+{% include "ui-js/column-editor.js" %}
 
-function deleteProtocolParamItem(clientId){
-    var grid = Ext.getCmp(clientId),
-        selection = grid.getSelectionContext(),
-        store = grid.getStore(),
-        rec = store.getById(selection.key);
-    store.remove(rec);
-}
-
-function onParamEditing(store, jsonFieldId){
-    var fld = Ext.getCmp(jsonFieldId),
-        items = [];
-
-    store.each(function(record){
-        var obj = record.data;
-        delete obj.id;
-        items.push(obj);
-    });
-
-    var result = JSON.stringify(items);
-
-    fld.setValue(result);
-}
+// подключение шаблонов вкладок
+{% for t in component.tabs_templates %}
+    {% include t %}
+{% endfor %}

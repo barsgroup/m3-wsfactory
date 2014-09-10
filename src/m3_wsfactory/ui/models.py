@@ -5,351 +5,254 @@ models.py
 :Created: 5/23/14
 :Author: timic
 """
+import hashlib
+import json
 import logging
+from lxml import etree
+from wsfactory import _helpers
+from wsfactory.config import Settings, ImproperlyConfigured
+
 logger = logging.getLogger(__name__)
 
-import os
+from copy import copy
+from itertools import imap
+from functools import partial
 
-from django.utils.translation import ugettext as _
-from django.utils import simplejson as json
+from objectpack import VirtualModel
 
-from objectpack import VirtualModel, ValidationError
-
-from wsfactory.config import Settings, VALUE_TYPES
-from wsfactory._helpers import lock
-
-
-class BaseWSVirtualModel(VirtualModel):
-
-    _id_field = "code"
-    _registry = None
-
-    def __init__(self, init_data=None):
-        init_data = init_data or {}
-        self.__dict__.update(init_data)
+import spyne_models
+from helpers import (
+    ElementRootAccessor, InstanceDescriptorMixin,
+    recur_getattr, field_property)
 
 
-class EditableWSModelMixin(object):
+class SettingsProxy(object):
 
-    def __init__(self, init_data=None):
-        init_data = init_data or self.new()
-        self.__dict__.update(init_data)
+    Protocols = ElementRootAccessor("Protocols", "Protocol")
+    ApiRegistry = ElementRootAccessor("ApiRegistry", "Api")
+    Services = ElementRootAccessor("Services", "Service")
+    SecurityModules = ElementRootAccessor("SecurityProfile/Modules", "Module")
+    SecurityProfiles = ElementRootAccessor("SecurityProfile", "Security")
+    Applications = ElementRootAccessor(
+        "Applications", "Application", "name")
+
+proxy = SettingsProxy()
+
+
+class BaseModel(VirtualModel, InstanceDescriptorMixin):
+
+    _proxy = proxy
+    _type_info = None
+    _root = None
+    _doc_root = None
 
     @classmethod
-    def new(cls):
-        raise NotImplementedError()
+    def _get_ids(cls):
+        doc, items, _hash = getattr(cls._proxy, cls._root)
+        return imap(lambda item: (doc, item, _hash), items)
 
-    def to_registry(self):
-        raise NotImplementedError()
+    def __init__(self, config=None):
+        if config is None:
+            self.id = None
+            self._obj = self._type_info.init_from({})
+            self._el = None
+            self._el_orig = None
+            self._doc_root, _, self.hash = getattr(self._proxy, self._root)
+        else:
+            self._doc_root, (
+                self.id, self._el), self.hash = config
+            self._obj = self._type_info.init_from(self._el)
+        for k in self._obj.get_fields():
+            setattr(self, k, field_property(self._obj, k))
 
-    @lock
+    def __repr__(self):
+        if self._obj is None:
+            return super(BaseModel, self).__repr__()
+        else:
+            return self._type_info.to_string(self._obj)
+
+
+class BaseParametrisedModel(BaseModel):
+
+    def _get_params_root(self, name):
+        parts = name.rsplit(".", 1)
+        base = parts.pop(0)
+        if parts:
+            param_name = parts[0]
+            obj = recur_getattr(self, base)
+        else:
+            param_name = name
+            obj = self
+        return obj, param_name
+
+    def get_param(self, name):
+        """
+        :param name: Имя параметра ("name" или "InProtocol.validation")
+        :type name: str
+        """
+        obj, param_name = self._get_params_root(name)
+        for param in obj.Param or []:
+            if param.key == param_name:
+                return param.value
+
+    def set_param(self, name, value, value_type):
+        obj, param_name = self._get_params_root(name)
+        obj.Param = obj.Param or []
+        for param in obj.Param:
+            if param.key == param_name:
+                param.value = value
+                break
+        else:
+            param = spyne_models.Param(
+                key=param_name, value=value, valueType=value_type)
+            obj.Param.append(param)
+
+    def delete_param(self, name):
+        obj, param_name = self._get_params_root(name)
+        to_remove = None
+        for param in obj.Param or []:
+            if param.key == param_name:
+                to_remove = param
+        if to_remove:
+            obj.Param.remove(to_remove)
+
+
+class EditableMixin(object):
+
+    @_helpers.lock
     def save(self):
-        registry = Settings.get_registry(self._registry)
-        id_key = getattr(self, self._id_field)
-
-        if self.id != id_key and id_key in registry:
-            raise ValidationError(_(
-                u"%s с кодом %s уже существует!" % (
-                    self._meta.verbose_name, id_key)
-            ))
-        registry[id_key] = self.to_registry()
-
-        # если ключ изменился надо удалить старый
-        if self.id != id_key:
-            registry.pop(self.id, None)
-
+        el = self._obj.objectify()
+        if self._el is not None:
+            self._doc_root.replace(self._el, el)
+        else:
+            self._doc_root.append(el)
         try:
             Settings.dump(Settings.config_path())
         finally:
+            self._proxy._force_load = True
             Settings.reload()
 
-    @lock
+    @_helpers.lock
     def safe_delete(self):
-        id_key = getattr(self, self._id_field)
-        registry = getattr(Settings(), "_%s" % self._registry)
-        result = id_key in registry
-        registry.pop(id_key)
+        self._el.getparent().remove(self._el)
         try:
             Settings.dump(Settings.config_path())
+            result = True
+        except ImproperlyConfigured:
+            result = False
         finally:
+            self._proxy._force_load = True
             Settings.reload()
         return result
 
 
-class Protocol(BaseWSVirtualModel):
-    """
-    Прикладной протокол передачи данных бизнем логики. JSON, SOAP etc.
-    """
+class Protocol(BaseModel):
 
-    _registry = "protocols"
-
-    @classmethod
-    def _get_ids(cls):
-        protocols = Settings.get_registry(cls._registry)
-        for key, value in protocols.iteritems():
-            yield {
-                "id": key,
-                "code": key,
-                "name": value["name"],
-                "direction": value["direction"],
-                "module": value["module_path"],
-            }
-
-    def display_direction(self):
-        return {
-            "BOTH": _(u'Вх./Исх.'),
-            "IN": _(u'Входящий'),
-            "OUT": _(u'Исходящий'),
-        }.get(self.direction)
+    _type_info = spyne_models.Protocol
+    _root = "Protocols"
 
 
-class Api(BaseWSVirtualModel):
-    """
-    Сервисное api или сервис-методы
-    """
+class Api(BaseModel):
 
-    _registry = "api"
+    _type_info = spyne_models.Api
+    _root = "ApiRegistry"
 
     class _meta:
-        verbose_name = _(u"Метод")
-        verbose_name_plural = _(u"Методы")
+        verbose_name = u"Метод"
+        verbose_name_plural = u"Методы"
+
+
+class SecurityModule(BaseModel):
+
+    _root = "SecurityModules"
+    _type_info = spyne_models.Module
+
+
+class SecurityParamDeclaration(VirtualModel):
 
     @classmethod
     def _get_ids(cls):
-        api = Settings.get_registry(cls._registry)
-        for key, value in api.iteritems():
-            yield {
-                "id": key,
-                "code": key,
-                "name": value["name"],
-                "module": value["module_path"],
-            }
+        return (
+            (param, module)
+            for module in SecurityModule.objects.all()
+            for param in module.Param
+        )
+
+    def __init__(self, params=None):
+        param, module = params
+        self.name = param.name
+        self.key = param.key
+        self.valueType = param.valueType
+        self.value = param.value
+        self.module = module.code
 
 
-class Service(EditableWSModelMixin, BaseWSVirtualModel):
-    """
-    Услуги (они же сервисы)
-    """
+class Security(BaseParametrisedModel, EditableMixin):
 
-    _registry = "services"
+    _root = "SecurityProfiles"
+    _type_info = spyne_models.Security
+    _param_attrs = ("Param",)
 
     class _meta:
-        verbose_name = _(u"Услуга")
-        verbose_name_plural = _(u"Услуги")
-
-    @classmethod
-    def _get_ids(cls):
-        services = Settings.get_registry(cls._registry)
-        config_hash = Settings.hash()
-        for key, value in services.iteritems():
-            yield {
-                "hash": config_hash,
-                "id": key,
-                "code": key,
-                "name": value["name"],
-                "api": value["api"],
-            }
-
-    def save(self):
-        if not self.api:
-            raise ValidationError(_(u"Необходимо добавить методы в услугу!"))
-        super(Service, self).save()
-
-    def to_registry(self):
-        return {
-            "api": self.api,
-            "name": self.name,
-        }
-
-    @classmethod
-    def new(cls):
-        return {
-            "hash": Settings.hash(),
-            "id": None,
-            "code": None,
-            "name": None,
-            "api": set(),
-        }
-
-    @property
-    def api_json(self):
-        return json.dumps(list(self.api))
-
-    @api_json.setter
-    def api_json(self, value):
-        self.api = set(json.loads(value))
-
-    @property
-    def api_data(self):
-        api = Settings.get_registry("api")
-        return tuple((code, code, api[code]["name"]) for code in self.api)
+        verbose_name = u"Профиль безопасности"
+        verbose_name_plural = u"Профили безопасности"
 
 
-class Security(EditableWSModelMixin, BaseWSVirtualModel):
+class Service(BaseModel, EditableMixin):
 
-    _registry = "security"
+    _root = "Services"
+    _type_info = spyne_models.Service
 
     class _meta:
-        verbose_name = _(u"Профиль безопасности WS-Security")
-        verbose_name_plural = _(u"Профили безопасности WS-Security")
+        verbose_name = u"Услуга"
+        verbose_name_plural = u"Реестр услуг"
 
-    @classmethod
-    def _get_ids(cls):
-        security = Settings.get_registry(cls._registry)
-        for key, value in security.iteritems():
-            item = {
-                "hash": Settings.hash(),
-                "id": key,
-                "code": key,
-            }
-            item.update(value)
-            yield item
+    @property
+    def api_flat(self):
+        return map(lambda a: a.code, self.Api or [])
 
-    def to_registry(self):
-        return {
-            "name": self.name,
-            "pem_file_name": self.pem_file_name,
-            "private_key_pass": self.private_key_pass,
-        }
+    @api_flat.setter
+    def api_flat(self, values):
+        if values:
+            self.Api = map(
+                lambda value: spyne_models.ServiceApi(code=value), values)
+        else:
+            raise ValueError("Service api list cannot be empty!")
 
-    @classmethod
-    def new(cls):
-        return {
-            "hash": Settings.hash(),
-            "id": None,
-            "code": None,
-            "name": None,
-            "pem_file_name": None,
-            "private_key_pass": None,
-        }
+    @property
+    def api_flat_json(self):
+        return json.dumps(self.api_flat)
 
-    def save(self):
-        if not os.path.exists(self.pem_file_name):
-            raise ValidationError(
-                _(u"Файл подписи `%s` не найден!") % self.pem_file_name)
-        super(Security, self).save()
+    @api_flat_json.setter
+    def api_flat_json(self, json_values):
+        self.api_flat = json.loads(json_values)
 
 
-class Application(EditableWSModelMixin, BaseWSVirtualModel):
-    """
-    Service <---> Protocol
-    """
+class Application(BaseParametrisedModel, EditableMixin):
 
-    _id_field = "name"
-    _registry = "applications"
+    _type_info = spyne_models.Application
+    _root = "Applications"
 
     class _meta:
-        verbose_name = _(u"Веб-сервис")
-        verbose_name_plural = _(u"Веб-сервисы")
+        verbose_name = u"Веб-сервис"
+        verbose_name_plural = u"Реестр веб-сервисов"
+
+
+class ProtocolParamDeclaration(VirtualModel):
 
     @classmethod
     def _get_ids(cls):
-        apps = Settings.get_registry(cls._registry)
-        config_hash = Settings.hash()
-        for key, value in apps.iteritems():
-            yield {
-                "hash": config_hash,
-                "id": key,
-                "name": key,
-                "service": value["service"],
-                "tns": value.get("tns", None),
-                "in_protocol": value["in_protocol"]["code"],
-                "out_protocol": value["out_protocol"]["code"],
-                "in_security": value["in_protocol"].get("security", None),
-                "out_security": value["out_protocol"].get("security", None),
-                "in_protocol_params": value["in_protocol"]["params"],
-                "out_protocol_params": value["out_protocol"]["params"],
-            }
+        return (
+            (param, protocol)
+            for protocol in Protocol.objects.all()
+            for param in protocol.Param or []
+        )
 
-    @classmethod
-    def new(cls):
-
-        return {
-            "hash": Settings.hash(),
-            "id": None,
-            "name": None,
-            "service": None,
-            "tns": None,
-            "in_security": None,
-            "out_security": None,
-            "in_protocol": None,
-            "in_protocol_params": {},
-            "out_protocol": None,
-            "out_protocol_params": {},
-        }
-
-    def display_service(self):
-        services = Settings.get_registry("services")
-        return services[self.service]["name"]
-
-    def display_in_protocol(self):
-        protocols = Settings.get_registry("protocols")
-        return protocols[self.in_protocol]["name"]
-
-    def display_out_protocol(self):
-        protocols = Settings.get_registry("protocols")
-        return protocols[self.out_protocol]["name"]
-
-    @property
-    def in_protocol_params_json(self):
-        return json.dumps([
-            {
-                "key": key,
-                "value": value,
-                "value_type": type(value).__name__
-            } for key, value in self.in_protocol_params.iteritems()
-        ])
-
-    @property
-    def out_protocol_params_json(self):
-        return json.dumps([
-            {
-                "key": key,
-                "value": value,
-                "value_type": type(value).__name__
-            } for key, value in self.out_protocol_params.iteritems()
-        ])
-
-    @property
-    def in_protocol_params_data(self):
-        return [
-            (key, key, value, type(value).__name__)
-            for key, value in self.in_protocol_params.iteritems()]
-
-    @property
-    def out_protocol_params_data(self):
-        return [
-            (key, key, value, type(value).__name__)
-            for key, value in self.out_protocol_params.iteritems()]
-
-    @in_protocol_params_json.setter
-    def in_protocol_params_json(self, value):
-        array = json.loads(value)
-        self.in_protocol_params = dict(
-            (item["key"], VALUE_TYPES[item["value_type"]](item["value"]))
-            for item in array)
-
-    @out_protocol_params_json.setter
-    def out_protocol_params_json(self, value):
-        array = json.loads(value)
-        self.out_protocol_params = dict(
-            (item["key"], VALUE_TYPES[item["value_type"]](item["value"]))
-            for item in array)
-
-    def to_registry(self):
-        result = {
-            "in_protocol": {
-                "code": self.in_protocol,
-                "params": self.in_protocol_params,
-            },
-            "out_protocol": {
-                "code": self.out_protocol,
-                "params": self.out_protocol_params,
-            },
-            "service": self.service,
-        }
-        if self.in_security:
-            result["in_protocol"]["security"] = self.in_security
-        if self.out_security:
-            result["out_protocol"]["security"] = self.out_security
-        return result
+    def __init__(self, params=None):
+        param, protocol = params
+        self.name = param.name
+        self.key = param.key
+        self.valueType = param.valueType
+        self.value = param.value
+        self.required = param.required
+        self.protocol = protocol.code

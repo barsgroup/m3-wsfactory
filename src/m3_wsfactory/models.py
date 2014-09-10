@@ -18,7 +18,7 @@ from django.core.files.base import ContentFile
 from django.db import models
 from django.utils.translation import ugettext as _
 
-from wsfactory.config import Settings
+from ui.models import Application, Service
 
 
 def upload_handler(instance, filename):
@@ -60,9 +60,10 @@ class LogEntry(models.Model):
 
     @property
     def service(self):
-        app = Settings.get_registry("applications").get(
-            self.application, None)
-        return app and app.get("service", None) or "Unknown"
+
+        app = Application.objects.get(id=self.application)
+        service = Service.objects.get(id=app.obj.service)
+        return service.obj.name
 
     def _get_file_field_url(self, field=None):
         try:
@@ -74,7 +75,7 @@ class LogEntry(models.Model):
 
     def _set_file_field(self, value, field=None):
         getattr(self, "_".join((field, "file"))).save(
-            name=".".join((field, "log")), content=ContentFile(value))
+            ".".join((field, "log")), ContentFile(value), False)
 
     @property
     def request(self):
