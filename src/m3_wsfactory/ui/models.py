@@ -5,18 +5,14 @@ models.py
 :Created: 5/23/14
 :Author: timic
 """
-import hashlib
 import json
 import logging
-from lxml import etree
 from wsfactory import _helpers
 from wsfactory.config import Settings, ImproperlyConfigured
 
 logger = logging.getLogger(__name__)
 
-from copy import copy
 from itertools import imap
-from functools import partial
 
 from objectpack import VirtualModel
 
@@ -232,6 +228,12 @@ class Application(BaseParametrisedModel, EditableMixin):
 
     _type_info = spyne_models.Application
     _root = "Applications"
+
+    def __init__(self, config=None):
+        super(Application, self).__init__(config)
+        if not self.id:
+            self.InProtocol = self._type_info.InProtocol()
+            self.OutProtocol = self._type_info.OutProtocol()
 
     class _meta:
         verbose_name = u"Веб-сервис"

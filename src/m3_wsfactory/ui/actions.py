@@ -292,7 +292,7 @@ class ApplicationPack(BaseEditablePack):
                 models.Service.objects.values_list("id", "name")),
             "protocol_data": list(
                 models.Protocol.objects.values_list("id", "name")),
-            "security_data": list(
+            "security_data": [(None, None)] + list(
                 models.Security.objects.values_list("id", "name")),
             "InProtocol_param_pack": ControllerCache.find_pack(
                 InProtocolParamsGridPack),
