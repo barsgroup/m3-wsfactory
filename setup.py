@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 from distutils.core import setup
 
@@ -8,7 +9,7 @@ def read_file(name):
 
 setup(
     name='m3_wsfactory',
-    version='0.1.0',
+    version='0.2.0',
     packages=['m3_wsfactory', 'm3_wsfactory.smev', 'm3_wsfactory.smev.smev256',
               'm3_wsfactory.management', 'm3_wsfactory.management.commands',
               'm3_wsfactory.migrations'],
