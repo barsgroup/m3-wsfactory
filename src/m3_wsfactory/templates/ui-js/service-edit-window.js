@@ -68,7 +68,7 @@ function onApiEditing(store) {
 
     store.each(function(record){
         var obj = record.data;
-        items.push(obj.code);
+        items.push(obj.id);
     });
 
     var result = JSON.stringify(items);

@@ -56,7 +56,7 @@ class ServiceEditWindow(objectpack.BaseEditWindow):
             allow_blank=False,
             anchor="100%")
         self.api_json_field = ext.ExtStringField(
-            name="api_json",
+            name="api_flat_json",
             hidden=True)
         self.hash_field = ext.ExtStringField(
             name="hash",
@@ -64,11 +64,16 @@ class ServiceEditWindow(objectpack.BaseEditWindow):
         self.api_grid = ext.ExtObjectGrid(
             header=True,
             title=_(u"Сервис-методы"),
-            height=200,
-            anchor="100%")
+            flex=1)
 
     def _do_layout(self):
         super(ServiceEditWindow, self)._do_layout()
+        self.height = 500
+        self.width = 600
+        self.layout = 'vbox'
+        self.layout_config = {'align': 'stretch', 'pack': 'start'}
+        self.form.layout_config = {'height': 250}
+
         self.form.items.extend((
             self.code_field,
             self.name_field,
@@ -80,14 +85,10 @@ class ServiceEditWindow(objectpack.BaseEditWindow):
     def set_params(self, params):
         super(ServiceEditWindow, self).set_params(params)
         self.template_globals = "ui-js/service-edit-window.js"
-        self.auto_height = True
         self.api_grid.allow_paging = False
         self.api_grid.add_column(
-            data_index="code",
+            data_index="id",
             header=_(u"Код"))
-        self.api_grid.add_column(
-            data_index="name",
-            header=_(u"Наименование"))
         self.api_grid.top_bar.items.extend((
             ext.ExtButton(
                 text=_(u"Добавить"),
@@ -99,10 +100,10 @@ class ServiceEditWindow(objectpack.BaseEditWindow):
                 handler="deleteApi")))
         self.api_grid.store = ext.ExtDataStore()
         obj = params["object"]
-        codes = map(lambda a: [a.code] * 3, obj.Api or [])
+        codes = map(lambda a: [a.id], obj.Api or [])
 
         self.api_grid.store.load_data(codes)
-        self.api_grid.store._listeners.update({
+        self.api_grid.store._listeners._data.update({
             "add": "onApiEditing",
             "remove": "onApiEditing"})
         self.select_api_url = params["select_api_url"]
@@ -179,7 +180,8 @@ class ApplicationMainTab(objectpack.WindowTab):
         win.tns_field = ext.ExtStringField(
             name="tns",
             label=_(u"TNS"),
-            anchor="100%")
+            anchor="100%",
+            allow_blank=False)
 
         win.hash_field = ext.ExtStringField(
             name="hash",

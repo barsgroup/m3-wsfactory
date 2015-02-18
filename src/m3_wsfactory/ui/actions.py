@@ -73,7 +73,7 @@ class ServicePack(BaseEditablePack):
 
     columns = [
         {
-            "data_index": "code",
+            "data_index": "id",
             "header": _(u"Код"),
         },
         {
@@ -109,6 +109,10 @@ class ApiPack(objectpack.ObjectPack):
         {
             "data_index": "code",
             "header": _(u"Код"),
+        },
+        {
+            "data_index": "id",
+            "header": _(u"Идентификатор"),
         },
         {
             "data_index": "name",
@@ -471,5 +475,5 @@ def menu_item(*path, **params):
     path = list(path)
     item = menu.Item(path.pop(), action)
     while path:
-        item = menu.SubMenu(path.pop(), item)
+        item = menu.SubMenu(path.pop(), item, icon='menu-dicts-16')
     return item

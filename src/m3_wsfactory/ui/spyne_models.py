@@ -144,6 +144,7 @@ class Protocol(ComplexModel):
 
 class Api(ComplexModel):
 
+    id = XmlAttribute(Unicode, use="required")
     code = XmlAttribute(Unicode, use="required")
     name = XmlAttribute(Unicode, use="required")
     module = XmlAttribute(Unicode, use="required")
@@ -151,7 +152,7 @@ class Api(ComplexModel):
 
 class ServiceApi(ComplexModel):
 
-    code = XmlAttribute(Unicode, use="required")
+    id = XmlAttribute(Unicode, use="required")
 
 
 class Service(ComplexModel):

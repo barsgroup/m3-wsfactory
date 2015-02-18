@@ -205,13 +205,13 @@ class Service(BaseModel, EditableMixin):
 
     @property
     def api_flat(self):
-        return map(lambda a: a.code, self.Api or [])
+        return map(lambda a: a.id, self.Api or [])
 
     @api_flat.setter
     def api_flat(self, values):
         if values:
             self.Api = map(
-                lambda value: spyne_models.ServiceApi(code=value), values)
+                lambda value: spyne_models.ServiceApi(id=value), values)
         else:
             raise ValueError("Service api list cannot be empty!")
 
