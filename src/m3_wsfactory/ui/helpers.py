@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from functools import partial
 from threading import RLock
 
-from wsfactory.config import Settings, ImproperlyConfigured
+from wsfactory.config import Settings, ImproperlyConfigured, track_config
 
 
 class ElementRootAccessor(object):
@@ -27,9 +27,8 @@ class ElementRootAccessor(object):
         self._hash = None
         self._lock = RLock()
 
+    @track_config
     def __get__(self, instance, owner):
-        if not Settings.configured():
-            raise ImproperlyConfigured("Settings not loaded yet")
         _hash = Settings.hash()
 
         if self._doc is not None:
