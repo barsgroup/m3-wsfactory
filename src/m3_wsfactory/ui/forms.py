@@ -181,7 +181,7 @@ class ApplicationMainTab(objectpack.WindowTab):
             name="tns",
             label=_(u"TNS"),
             anchor="100%",
-            allow_blank=False)
+            allow_blank=True)
 
         win.hash_field = ext.ExtStringField(
             name="hash",
