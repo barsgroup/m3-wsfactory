@@ -9,7 +9,7 @@ def read_file(name):
 
 setup(
     name='m3_wsfactory',
-    version='0.2.2',
+    version='0.2.3',
     packages=[
         'm3_wsfactory',
         'm3_wsfactory.migrations',
