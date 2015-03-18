@@ -263,6 +263,8 @@ class ApplicationPack(BaseEditablePack):
 
     model = models.Application
     add_window = edit_window = forms.ApplicationEditWindow
+    # Название пустого значения в поле "Профиль безопасности"
+    EMPTY_SECURITY = '---'
 
     columns = [
         {
@@ -296,7 +298,7 @@ class ApplicationPack(BaseEditablePack):
                 models.Service.objects.values_list("id", "name")),
             "protocol_data": list(
                 models.Protocol.objects.values_list("id", "name")),
-            "security_data": [(None, '---')] + list(
+            "security_data": [(None, self.EMPTY_SECURITY)] + list(
                 models.Security.objects.values_list("id", "name")),
             "InProtocol_param_pack": ControllerCache.find_pack(
                 InProtocolParamsGridPack),
