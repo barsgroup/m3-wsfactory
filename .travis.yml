@@ -1,0 +1,19 @@
+script: true
+install: true
+language: python
+python:
+- '2.7'
+
+deploy:
+  provider: pypi
+  user: bars-travis
+  password:
+    secure: sJ5yBfD6+yIlqbfEaMFAnqw0PWCqkxpykX7wtdxvDIyjepyUcwf1lHDuC7tMWZFHxu2ThZ23UEs2drV0O5au/q08I80St0fBb3uEi+DA9WlOnKm2BL9C6NTA7IrIbQ+y73VAuA8+kMlnz6o1Y+eqS+/hfHqWseXIVPJ8DQVgXaK4OZmG11AskM5eH7jaN4hIx7FbimaisaUrb68/1DLau5YBxAI2xViclQ6a1Gu9v9DmQjnPq2C6tQI48JLOC19NQ2IOl8535WBBhyOp1vkBwbtCOf3jEqOiQBTIz3QGQopFLBjriSDCB9BjkmqxNw9SGWRnJyJR/0EXOfdfZQl+V/ZCPTRxQWYpaRL/SCLxDblt7P667baARMkg8sWwIGg/I4dl+Znb+Ua4EmcQYXO8a57VxmiqiiJojHTcKpIFn621uWAcOelmhjk61eaEDLVd4c24leN2SX0cTsXDFmiq2ZDdWGa7q11dJxeCFPdeLqQQbBzHuX4H/i1PSLLrXiKcujBYc9lpOEcJLWtu7C90mSqzFlt56CY/suHxKHhOzxu9dCrIOF3r2wolnn1LEBc3q5SIsdQRGme6KzYih0EwF72+gTdM1zl39Ko4Zl5cfTzuK825u3t/o0hAwyNcKFgQAmqh2GifRwpqeAKLiv/RDOxl7tGkHjPH2JF7pP56Frg=
+  on:
+    tags: true
+  distributions: sdist
+
+notifications:
+  email:
+    recipients:
+    - dev-py@bars-open.ru
